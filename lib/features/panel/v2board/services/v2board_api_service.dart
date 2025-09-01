@@ -59,6 +59,7 @@ class V2BoardApiService with InfraLogger {
   }) async {
     try {
       final apiBaseUrl = await baseUrl;
+      loggy.info('开始登录请求: $email');
       final response = await _dio.post(
         '$apiBaseUrl/passport/auth/login',
         data: {
@@ -66,7 +67,25 @@ class V2BoardApiService with InfraLogger {
           'password': password,
         },
       );
-      return response.data as Map<String, dynamic>;
+      loggy.info('登录响应状态码: ${response.statusCode}');
+      loggy.info('登录响应数据: ${response.data}');
+      
+      final responseData = response.data as Map<String, dynamic>;
+      
+      // 检查响应中的token和auth_data
+      if (responseData.containsKey('data')) {
+        final data = responseData['data'] as Map<String, dynamic>?;
+        if (data != null) {
+          if (data.containsKey('token')) {
+            loggy.info('V2Board登录成功 - 获取到token: ${data['token']}');
+          }
+          if (data.containsKey('auth_data')) {
+            loggy.info('V2Board登录成功 - 获取到auth_data: ${data['auth_data']}');
+          }
+        }
+      }
+      
+      return responseData;
     } catch (e) {
       loggy.error('登录失败: $e');
       rethrow;
@@ -191,27 +210,12 @@ class V2BoardApiService with InfraLogger {
     }
   }
 
-  /// 获取订阅信息
+  /// 获取订阅信息（使用用户API，需要token认证）
   Future<Map<String, dynamic>> getSubscription(String token) async {
     try {
       final apiBaseUrl = await baseUrl;
-      
-      // 首先验证token是否有效，通过获取用户信息
-      try {
-        final userInfoResponse = await _dio.get(
-          '$apiBaseUrl/user/info',
-          options: Options(
-            headers: {'Authorization': 'Bearer $token'},
-          ),
-        );
-        loggy.info('用户信息验证成功: ${userInfoResponse.data}');
-      } catch (e) {
-        loggy.error('Token验证失败: $e');
-        if (e is DioException && e.response?.statusCode == 403) {
-          throw Exception('Token已过期或无效，请重新登录');
-        }
-        rethrow;
-      }
+      loggy.info('开始获取订阅信息，API地址: $apiBaseUrl');
+      loggy.info('使用的token: ${token.substring(0, 20)}...');
       
       final response = await _dio.get(
         '$apiBaseUrl/user/getSubscribe',
@@ -219,11 +223,23 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
+      loggy.info('获取订阅信息成功: ${response.data}');
       return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取订阅信息失败: $e');
-      if (e is DioException && e.response?.statusCode == 403) {
-        throw Exception('Token已过期或无效，请重新登录');
+      if (e is DioException) {
+        loggy.error('HTTP状态码: ${e.response?.statusCode}');
+        loggy.error('响应数据: ${e.response?.data}');
+        if (e.response?.statusCode == 401) {
+          throw Exception('认证已过期或无效，请重新登录');
+        } else if (e.response?.statusCode == 403) {
+          final responseData = e.response?.data;
+          if (responseData is Map && responseData['message'] != null) {
+            throw Exception('获取订阅被拒绝: ${responseData['message']}');
+          } else {
+            throw Exception('获取订阅被拒绝，可能是认证信息无效');
+          }
+        }
       }
       rethrow;
     }

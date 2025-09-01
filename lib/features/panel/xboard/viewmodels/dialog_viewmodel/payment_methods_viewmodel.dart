@@ -21,7 +21,7 @@ class PaymentMethodsViewModel extends ChangeNotifier {
   });
 
   Future<void> handlePayment(dynamic selectedMethod) async {
-    final accessToken = await getToken(); // 获取用户的token
+    final accessToken = await TokenStorage.getToken(); // 获取用户的token
     try {
       // 调用 submitOrder 并获取完整的响应字典
       final response = await _purchaseService.submitOrder(
@@ -76,7 +76,7 @@ class PaymentMethodsViewModel extends ChangeNotifier {
   }
 
   Future<void> monitorOrderStatus() async {
-    final accessToken = await getToken();
+    final accessToken = await TokenStorage.getToken();
     if (accessToken == null) return;
 
     MonitorPayStatus().monitorOrderStatus(tradeNo, accessToken, (bool isPaid) {

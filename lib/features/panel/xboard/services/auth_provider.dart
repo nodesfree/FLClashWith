@@ -14,13 +14,17 @@ class AuthNotifier extends StateNotifier<bool> {
   }
 
   Future<void> _checkInitialAuthState() async {
-    final token = await getToken();
-    print('Retrieved token: $token');
-    if (token != null && token.isNotEmpty) {
-      print('Token found, setting user to logged in');
+    final token = await TokenStorage.getToken();
+    final authData = await TokenStorage.getAuthData();
+    final hasCredentials = await TokenStorage.hasValidCredentials();
+    print('Token: $token');
+    print('Auth Data: $authData');
+    print('Has valid credentials: $hasCredentials');
+    if (hasCredentials) {
+      print('Valid credentials found, setting user to logged in');
       state = true;
     } else {
-      print('No token found, setting user to not logged in');
+      print('No valid credentials found, setting user to not logged in');
       state = false;
     }
   }
@@ -31,8 +35,8 @@ class AuthNotifier extends StateNotifier<bool> {
 }
 // 定义一个登出函数
 Future<void> logout(BuildContext context, WidgetRef ref) async {
-  // 清除存储的 token
-  await deleteToken();
+  // 清除存储的所有认证凭据（token 和 auth_data）
+  await TokenStorage.deleteAllCredentials();
   // 更新 authProvider 状态为未登录
   ref.read(authProvider.notifier).setLoggedIn(false);
   // 跳转到登录页面

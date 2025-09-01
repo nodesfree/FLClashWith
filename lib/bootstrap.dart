@@ -29,6 +29,7 @@ import 'package:hiddify/features/window/notifier/window_notifier.dart';
 import 'package:hiddify/singbox/service/singbox_service_provider.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
+
 // import 'package:sentry_flutter/sentry_flutter.dart'; // Temporarily disabled
 
 Future<void> lazyBootstrap(
@@ -52,9 +53,9 @@ Future<void> lazyBootstrap(
 // 初始化域名
   try {
     container.read(authProvider.notifier).state = false;
-    // print("Initializing domain...");
-    // await HttpService.initialize();
-    // print("Domain initialized successfully: ${HttpService.baseUrl}");
+    print("Initializing domain...");
+    await HttpService.initialize();
+    print("Domain initialized successfully: ${HttpService.baseUrl}");
   } catch (e) {
     // 如果初始化域名出错，设置为未登录状态
     print("Error during domain initialization: $e");
@@ -64,7 +65,7 @@ Future<void> lazyBootstrap(
 
 // 尝试读取 token 并设置登录状态
   try {
-    final token = await getToken(); // 从 SharedPreferences 中获取 token
+    final token = await TokenStorage.getToken(); // 从 SharedPreferences 中获取 token
     print("Retrieved token: $token");
 
     if (token != null) {

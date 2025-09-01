@@ -157,7 +157,7 @@ class AccountBalanceCard extends ConsumerWidget {
     int transferAmount,
   ) async {
     final t = ref.read(translationsProvider);
-    final token = await getToken();
+    final token = await TokenStorage.getToken();
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(t.userInfo.noAccessToken)),

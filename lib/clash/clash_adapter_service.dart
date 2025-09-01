@@ -21,7 +21,7 @@ import 'package:hiddify/singbox/service/singbox_service.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:loggy/loggy.dart';
 
-final _logger = Loggy('ClashAdapterService');
+
 
 class ClashAdapterService with InfraLogger implements SingboxService {
   final ClashCore _clashCore = ClashCore();
@@ -37,7 +37,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
   Future<void> init() async {
     if (_isInitialized) return;
 
-    _logger.debug("初始化ClashAdapterService");
+    loggy.debug("初始化ClashAdapterService");
 
     // 初始化状态流
     _statusController = StreamController<SingboxStatus>.broadcast();
@@ -48,7 +48,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
     await _clashCore.init();
 
     _isInitialized = true;
-    _logger.debug("ClashAdapterService初始化完成");
+    loggy.debug("ClashAdapterService初始化完成");
   }
 
   @override
@@ -61,10 +61,10 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         final homeDirPath = directories.workingDir.path;
         await _clashCore.init();
 
-        _logger.debug("ClashCore设置完成，工作目录: $homeDirPath");
+        loggy.debug("ClashCore设置完成，工作目录: $homeDirPath");
         return right(unit);
       } catch (e) {
-        _logger.error("设置失败: $e");
+        loggy.error("设置失败: $e");
         return left("ClashCore设置失败: $e");
       }
     });
@@ -95,10 +95,10 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         final tempFile = File(tempPath);
         await tempFile.writeAsString(clashConfig.config);
 
-        _logger.debug("配置验证成功");
+        loggy.debug("配置验证成功");
         return right(unit);
       } catch (e) {
-        _logger.error("配置验证失败: $e");
+        loggy.error("配置验证失败: $e");
         return left("配置验证失败: $e");
       }
     });
@@ -114,10 +114,10 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         final coreState = _convertSingboxOptionsToCoreState(options);
         await _clashCore.setState(coreState);
 
-        _logger.debug("配置选项更新成功");
+        loggy.debug("配置选项更新成功");
         return right(unit);
       } catch (e) {
-        _logger.error("配置选项更新失败: $e");
+        loggy.error("配置选项更新失败: $e");
         return left("配置选项更新失败: $e");
       }
     });
@@ -135,10 +135,10 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         final configContent = await configFile.readAsString();
         final clashConfig = await _converter.convertSingboxToClash(configContent);
 
-        _logger.debug("配置生成成功");
+        loggy.debug("配置生成成功");
         return right(clashConfig.config);
       } catch (e) {
-        _logger.error("配置生成失败: $e");
+        loggy.error("配置生成失败: $e");
         return left("配置生成失败: $e");
       }
     });
@@ -186,7 +186,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         await _clashCore.startListener();
 
         _statusController.add(const SingboxStarted());
-        _logger.debug("ClashCore启动成功，配置: $name");
+        loggy.debug("ClashCore启动成功，配置: $name");
         return right(unit);
       } catch (e) {
         _statusController.add(
@@ -195,7 +195,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
             message: "启动失败: $e",
           ),
         );
-        _logger.error("启动失败: $e");
+        loggy.error("启动失败: $e");
         return left("启动失败: $e");
       }
     });
@@ -211,10 +211,10 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         await _clashCore.shutdown();
 
         _statusController.add(const SingboxStopped());
-        _logger.debug("ClashCore停止成功");
+        loggy.debug("ClashCore停止成功");
         return right(unit);
       } catch (e) {
-        _logger.error("停止失败: $e");
+        loggy.error("停止失败: $e");
         return left("停止失败: $e");
       }
     });
@@ -236,7 +236,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         final startResult = await start(path, name, disableMemoryLimit).run();
         return startResult;
       } catch (e) {
-        _logger.error("重启失败: $e");
+        loggy.error("重启失败: $e");
         return left("重启失败: $e");
       }
     });
@@ -248,10 +248,10 @@ class ClashAdapterService with InfraLogger implements SingboxService {
       try {
         // ClashMeta的连接重置
         _clashCore.resetConnections();
-        _logger.debug("隧道重置成功");
+        loggy.debug("隧道重置成功");
         return right(unit);
       } catch (e) {
-        _logger.error("隧道重置失败: $e");
+        loggy.error("隧道重置失败: $e");
         return left("隧道重置失败: $e");
       }
     });
@@ -276,7 +276,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
           connectionsOut: 0,
         );
       } catch (e) {
-        _logger.error("获取统计信息失败: $e");
+        loggy.error("获取统计信息失败: $e");
         return const SingboxStats(
           uplink: 0,
           downlink: 0,
@@ -296,7 +296,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         final groups = await _clashCore.getProxiesGroups();
         return groups.map<SingboxOutboundGroup>((group) => _convertGroupToSingboxOutbound(group)).toList();
       } catch (e) {
-        _logger.error("获取代理组失败: $e");
+        loggy.error("获取代理组失败: $e");
         return <SingboxOutboundGroup>[];
       }
     });
@@ -319,10 +319,10 @@ class ClashAdapterService with InfraLogger implements SingboxService {
           return left("切换代理失败: $result");
         }
 
-        _logger.debug("代理切换成功: $groupTag -> $outboundTag");
+        loggy.debug("代理切换成功: $groupTag -> $outboundTag");
         return right(unit);
       } catch (e) {
-        _logger.error("代理切换失败: $e");
+        loggy.error("代理切换失败: $e");
         return left("代理切换失败: $e");
       }
     });
@@ -344,14 +344,14 @@ class ClashAdapterService with InfraLogger implements SingboxService {
           try {
             await _clashCore.getDelay("http://www.gstatic.com/generate_204", proxy.tag);
           } catch (e) {
-            _logger.warning("代理 ${proxy.tag} 延迟测试失败: $e");
+            loggy.warning("代理 ${proxy.tag} 延迟测试失败: $e");
           }
         }
 
-        _logger.debug("延迟测试完成: $groupTag");
+        loggy.debug("延迟测试完成: $groupTag");
         return right(unit);
       } catch (e) {
-        _logger.error("延迟测试失败: $e");
+        loggy.error("延迟测试失败: $e");
         return left("延迟测试失败: $e");
       }
     });
@@ -366,7 +366,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
   @override
   TaskEither<String, Unit> clearLogs() {
     return TaskEither(() async {
-      _logger.debug("日志清理完成");
+      loggy.debug("日志清理完成");
       return right(unit);
     });
   }

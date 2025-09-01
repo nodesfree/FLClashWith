@@ -19,7 +19,7 @@ class Subscription {
   // 公共方法：处理获取新订阅链接的逻辑（使用ClashMeta适配器）
   static Future<void> _handleSubscription(BuildContext context, WidgetRef ref, Future<String?> Function(String) getSubscriptionLink) async {
     final t = ref.watch(translationsProvider);
-    final accessToken = await getToken();
+    final accessToken = await TokenStorage.getToken();
     if (accessToken == null) {
       _showSnackbar(context, t.userInfo.noAccessToken);
       return;

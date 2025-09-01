@@ -11,7 +11,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class PurchaseService {
   Future<List<Plan>> fetchPlanData() async {
-    final accessToken = await getToken();
+    final accessToken = await TokenStorage.getToken();
     if (accessToken == null) {
       print("No access token found.");
       return [];

@@ -16,7 +16,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:loggy/loggy.dart';
 
-final _logger = Loggy('PanelSubscriptionAdapter');
+// 使用InfraLogger mixin提供的loggy属性
 
 class PanelSubscriptionAdapter with InfraLogger {
   final UserService _userService = UserService();
@@ -25,44 +25,45 @@ class PanelSubscriptionAdapter with InfraLogger {
   /// 获取面板订阅并转换为Clash配置
   Future<String?> fetchAndConvertSubscription(String accessToken) async {
     try {
-      _logger.debug("开始获取面板订阅");
+      loggy.debug("开始获取面板订阅");
 
       // 1. 从面板获取订阅链接
       final subscriptionUrl = await _userService.getSubscriptionLink(accessToken);
       if (subscriptionUrl == null) {
-        _logger.error("无法获取订阅链接");
+        loggy.error("无法获取订阅链接");
         return null;
       }
 
-      _logger.debug("获取到订阅链接: $subscriptionUrl");
+      loggy.debug("获取到订阅链接: $subscriptionUrl");
 
       // 2. 下载订阅内容
       final subscriptionContent = await _downloadSubscriptionContent(subscriptionUrl);
       if (subscriptionContent == null) {
-        _logger.error("无法下载订阅内容");
+        loggy.error("无法下载订阅内容");
         return null;
       }
 
-      _logger.debug("成功下载订阅内容，长度: ${subscriptionContent.length}");
+      loggy.debug("成功下载订阅内容，长度: ${subscriptionContent.length}");
 
       // 3. 解析订阅内容并转换为Clash配置
       final clashConfig = await _parseAndConvertSubscription(subscriptionContent);
 
-      _logger.debug("订阅转换完成");
+      loggy.debug("订阅转换完成");
       return clashConfig;
     } catch (e) {
-      _logger.error("获取和转换订阅失败: $e");
-      // 检查是否是token过期错误
-       if (TokenExpiryHandler.isTokenExpiredError(e)) {
-         _logger.warning("检测到token过期，需要重新登录");
-         // 使用全局token过期处理器
-         await TokenExpiryHandler.handleTokenExpiry(
-           context: null,
-           ref: null,
-           errorMessage: e.toString(),
-         );
-         rethrow;
-       }
+      loggy.error("获取和转换订阅失败: $e");
+      // 检查是否是认证错误
+      if (TokenExpiryHandler.isAuthError(e)) {
+        loggy.warning("检测到认证错误，需要重新登录");
+        // 使用全局认证错误处理器
+        await TokenExpiryHandler.handleAuthError(
+          context: null,
+          ref: null,
+          errorMessage: e.toString(),
+        );
+        // token过期后直接返回null，不要重新抛出异常
+        return null;
+      }
       return null;
     }
   }
@@ -70,36 +71,36 @@ class PanelSubscriptionAdapter with InfraLogger {
   /// 更新面板订阅并应用到配置文件
   Future<bool> updatePanelSubscription(WidgetRef ref) async {
     try {
-      _logger.debug("开始更新面板订阅");
+      loggy.debug("开始更新面板订阅");
 
       // 1. 获取访问令牌
-      final accessToken = await getToken();
+      final accessToken = await TokenStorage.getToken();
       if (accessToken == null) {
-        _logger.error("访问令牌不存在");
+        loggy.error("访问令牌不存在");
         return false;
       }
 
       // 2. 获取转换后的Clash配置
       final clashConfig = await fetchAndConvertSubscription(accessToken);
       if (clashConfig == null) {
-        _logger.error("无法获取Clash配置");
+        loggy.error("无法获取Clash配置");
         return false;
       }
 
       // 3. 保存配置到文件
       final configPath = await _saveClashConfig(clashConfig);
       if (configPath == null) {
-        _logger.error("保存配置失败");
+        loggy.error("保存配置失败");
         return false;
       }
 
       // 4. 更新Profile系统
       await _updateProfileSystem(ref, configPath);
 
-      _logger.debug("面板订阅更新完成");
+      loggy.debug("面板订阅更新完成");
       return true;
     } catch (e) {
-      _logger.error("更新面板订阅失败: $e");
+      loggy.error("更新面板订阅失败: $e");
       return false;
     }
   }
@@ -115,13 +116,14 @@ class PanelSubscriptionAdapter with InfraLogger {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
+        loggy.debug("订阅内容前500字符: ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}");
         return response.body;
       } else {
-        _logger.error("订阅下载失败，状态码: ${response.statusCode}");
+        loggy.error("订阅下载失败，状态码: ${response.statusCode}");
         return null;
       }
     } catch (e) {
-      _logger.error("下载订阅内容失败: $e");
+      loggy.error("下载订阅内容失败: $e");
       return null;
     }
   }
@@ -133,31 +135,50 @@ class PanelSubscriptionAdapter with InfraLogger {
       String decodedContent;
       try {
         decodedContent = String.fromCharCodes(base64.decode(subscriptionContent));
+        loggy.debug("Base64解码成功，解码后长度: ${decodedContent.length}");
       } catch (e) {
         decodedContent = subscriptionContent;
+        loggy.debug("Base64解码失败，使用原始内容，长度: ${decodedContent.length}");
       }
 
-      // 2. 检查是否为JSON格式（Sing-box配置）
+      // 打印订阅内容前500字符用于调试
+      final previewContent = decodedContent.length > 500 ? decodedContent.substring(0, 500) : decodedContent;
+      loggy.debug("订阅内容前500字符: $previewContent");
+
+      // 2. 优先检查是否已经是Clash YAML格式（最高优先级）
+      if (decodedContent.contains('proxies:') || decodedContent.contains('proxy-groups:') || decodedContent.contains('rules:')) {
+        loggy.debug("检测到Clash YAML格式，直接使用");
+        return decodedContent;
+      }
+
+      // 3. 检查是否为JSON格式（Sing-box配置）
       Map<String, dynamic>? singboxConfig;
       try {
         singboxConfig = jsonDecode(decodedContent) as Map<String, dynamic>;
+        loggy.debug("检测到JSON格式，确认为Sing-box配置");
+        
+        // 确保这确实是sing-box配置而不是其他JSON
+        if (singboxConfig.containsKey('outbounds') || singboxConfig.containsKey('inbounds')) {
+          loggy.debug("确认为Sing-box配置，进行转换");
+          final setupParams = await _configConverter.convertSingboxToClash(decodedContent);
+          return setupParams.config;
+        } else {
+          loggy.debug("JSON格式但不是Sing-box配置，当作订阅链接处理");
+          singboxConfig = null;
+        }
       } catch (e) {
         // 不是JSON，可能是订阅链接列表
         singboxConfig = null;
+        loggy.debug("不是JSON格式，尝试解析为订阅链接列表");
       }
 
-      // 3. 转换为Clash配置
-      if (singboxConfig != null) {
-        // 如果是Sing-box配置，直接转换
-        final setupParams = await _configConverter.convertSingboxToClash(decodedContent);
-        return setupParams.config;
-      } else {
-        // 如果是订阅链接列表，解析并构建配置
-        final clashConfig = await _buildClashConfigFromSubscription(decodedContent);
-        return _mapToYaml(clashConfig);
-      }
+      // 4. 作为订阅链接列表处理
+      loggy.debug("开始解析为订阅链接列表");
+      final clashConfig = await _buildClashConfigFromSubscription(decodedContent);
+      return _mapToYaml(clashConfig);
+      
     } catch (e) {
-      _logger.error("解析订阅内容失败: $e");
+      loggy.error("解析订阅内容失败: $e");
       return null;
     }
   }
@@ -166,10 +187,15 @@ class PanelSubscriptionAdapter with InfraLogger {
   Future<Map<String, dynamic>> _buildClashConfigFromSubscription(String subscriptionContent) async {
     final proxies = <Map<String, dynamic>>[];
     final lines = subscriptionContent.split('\n');
-
-    for (final line in lines) {
+    
+    loggy.debug("开始解析订阅内容，总行数: ${lines.length}");
+    
+    for (int i = 0; i < lines.length; i++) {
+      final line = lines[i];
       final trimmedLine = line.trim();
       if (trimmedLine.isEmpty) continue;
+      
+      loggy.debug("解析第${i+1}行: ${trimmedLine.length > 100 ? trimmedLine.substring(0, 100) + '...' : trimmedLine}");
 
       try {
         Map<String, dynamic>? proxy;
@@ -186,15 +212,20 @@ class PanelSubscriptionAdapter with InfraLogger {
           proxy = _parseHysteriaLink(trimmedLine);
         } else if (trimmedLine.startsWith('hysteria2://') || trimmedLine.startsWith('hy2://')) {
           proxy = _parseHysteria2Link(trimmedLine);
+        } else {
+          loggy.debug("未识别的协议类型: ${trimmedLine.substring(0, trimmedLine.indexOf('://') + 3)}");
         }
 
         if (proxy != null) {
           proxies.add(proxy);
+          loggy.debug("成功解析代理: ${proxy['name']}");
         }
       } catch (e) {
-        _logger.warning("解析代理链接失败: $trimmedLine, 错误: $e");
+        loggy.warning("解析代理链接失败: $trimmedLine, 错误: $e");
       }
     }
+    
+    loggy.debug("解析完成，有效代理数量: ${proxies.length}");
 
     if (proxies.isEmpty) {
       throw Exception("没有找到有效的代理配置");
@@ -278,7 +309,7 @@ class PanelSubscriptionAdapter with InfraLogger {
         'password': parts[1],
       };
     } catch (e) {
-      _logger.warning("解析SS链接失败: $link, 错误: $e");
+      loggy.warning("解析SS链接失败: $link, 错误: $e");
       return null;
     }
   }
@@ -325,7 +356,7 @@ class PanelSubscriptionAdapter with InfraLogger {
 
       return proxy;
     } catch (e) {
-      _logger.warning("解析VMess链接失败: $link, 错误: $e");
+      loggy.warning("解析VMess链接失败: $link, 错误: $e");
       return null;
     }
   }
@@ -365,7 +396,7 @@ class PanelSubscriptionAdapter with InfraLogger {
 
       return proxy;
     } catch (e) {
-      _logger.warning("解析VLESS链接失败: $link, 错误: $e");
+      loggy.warning("解析VLESS链接失败: $link, 错误: $e");
       return null;
     }
   }
@@ -386,7 +417,7 @@ class PanelSubscriptionAdapter with InfraLogger {
         'skip-cert-verify': params['allowInsecure'] == '1',
       };
     } catch (e) {
-      _logger.warning("解析Trojan链接失败: $link, 错误: $e");
+      loggy.warning("解析Trojan链接失败: $link, 错误: $e");
       return null;
     }
   }
@@ -409,7 +440,7 @@ class PanelSubscriptionAdapter with InfraLogger {
         'skip-cert-verify': params['insecure'] == '1',
       };
     } catch (e) {
-      _logger.warning("解析Hysteria链接失败: $link, 错误: $e");
+      loggy.warning("解析Hysteria链接失败: $link, 错误: $e");
       return null;
     }
   }
@@ -432,7 +463,7 @@ class PanelSubscriptionAdapter with InfraLogger {
         'skip-cert-verify': params['insecure'] == '1',
       };
     } catch (e) {
-      _logger.warning("解析Hysteria2链接失败: $link, 错误: $e");
+      loggy.warning("解析Hysteria2链接失败: $link, 错误: $e");
       return null;
     }
   }
@@ -448,10 +479,10 @@ class PanelSubscriptionAdapter with InfraLogger {
       final configFile = File('${configDir.path}/panel_subscription.yaml');
       await configFile.writeAsString(clashConfig);
 
-      _logger.debug("配置已保存到: ${configFile.path}");
+      loggy.debug("配置已保存到: ${configFile.path}");
       return configFile.path;
     } catch (e) {
-      _logger.error("保存配置失败: $e");
+      loggy.error("保存配置失败: $e");
       return null;
     }
   }
@@ -485,9 +516,9 @@ class PanelSubscriptionAdapter with InfraLogger {
       loggy.info("面板订阅配置已保存到: $configPath");
       loggy.info("新Profile创建: ${newProfile.name} (${newProfile.id})");
 
-      _logger.debug("Profile系统更新完成");
+      loggy.debug("Profile系统更新完成");
     } catch (e) {
-      _logger.error("更新Profile系统失败: $e");
+      loggy.error("更新Profile系统失败: $e");
       rethrow;
     }
   }

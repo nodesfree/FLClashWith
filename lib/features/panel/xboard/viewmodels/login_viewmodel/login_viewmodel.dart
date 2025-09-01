@@ -82,7 +82,11 @@ class LoginViewModel extends ChangeNotifier {
       findAuthData(result);
 
       if (authData != null && token != null) {
-        await storeToken(token!);  // 存储token而不是authData
+        print('Login successful - storing token: $token');
+        print('Login successful - auth_data: $authData');
+        // 同时存储token和auth_data，因为不同的API需要不同的认证方式
+        await TokenStorage.storeCredentials(token!, authData!);
+        print('Credentials stored successfully');
         await _saveCredentials();
 
         // 使用封装好的 Subscription 来更新订阅

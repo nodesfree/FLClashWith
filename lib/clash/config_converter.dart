@@ -7,17 +7,35 @@ import 'package:hiddify/clash/models/models.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:loggy/loggy.dart';
 
-final _logger = Loggy('ConfigConverter');
+
 
 class ConfigConverter with InfraLogger {
   /// 将Sing-box JSON配置转换为Clash YAML配置
   Future<SetupParams> convertSingboxToClash(String singboxConfigContent) async {
     try {
+      // 首先检查是否已经是Clash YAML格式
+      if (singboxConfigContent.contains('proxies:') || 
+          singboxConfigContent.contains('proxy-groups:') || 
+          singboxConfigContent.contains('rules:')) {
+        loggy.debug("检测到Clash YAML格式，直接返回");
+        return SetupParams(
+          config: singboxConfigContent,
+          params: SetupConfigParams(),
+        );
+      }
+
       final Map<String, dynamic> singboxConfig;
 
       // 尝试解析JSON配置
       try {
         singboxConfig = jsonDecode(singboxConfigContent) as Map<String, dynamic>;
+        
+        // 确保这是一个有效的sing-box配置
+        if (!singboxConfig.containsKey('outbounds') && !singboxConfig.containsKey('inbounds')) {
+          loggy.debug("JSON格式但不是Sing-box配置，当作订阅内容处理");
+          return await _handleSubscriptionContent(singboxConfigContent);
+        }
+        
       } catch (e) {
         // 如果不是JSON，可能是订阅内容，尝试处理
         return await _handleSubscriptionContent(singboxConfigContent);
@@ -34,7 +52,7 @@ class ConfigConverter with InfraLogger {
         params: SetupConfigParams(),
       );
     } catch (e) {
-      _logger.error("配置转换失败: $e");
+      loggy.error("配置转换失败: $e");
       rethrow;
     }
   }
@@ -42,11 +60,11 @@ class ConfigConverter with InfraLogger {
   /// 处理订阅内容（可能包含多个配置）
   Future<SetupParams> _handleSubscriptionContent(String content) async {
     try {
-      _logger.debug("处理订阅内容，长度: ${content.length}");
+      loggy.debug("处理订阅内容，长度: ${content.length}");
       
       // 首先检查是否是已经是YAML格式的Clash配置
       if (content.contains('proxies:') || content.contains('proxy-groups:')) {
-        _logger.debug("检测到Clash YAML格式，直接使用");
+        loggy.debug("检测到Clash YAML格式，直接使用");
         return SetupParams(
           config: content,
           params: SetupConfigParams(),
@@ -57,15 +75,15 @@ class ConfigConverter with InfraLogger {
       String decodedContent;
       try {
         decodedContent = String.fromCharCodes(base64.decode(content.trim()));
-        _logger.debug("Base64解码成功，解码后长度: ${decodedContent.length}");
+        loggy.debug("Base64解码成功，解码后长度: ${decodedContent.length}");
       } catch (e) {
         decodedContent = content;
-        _logger.debug("Base64解码失败，使用原始内容");
+        loggy.debug("Base64解码失败，使用原始内容");
       }
 
       // 再次检查解码后是否是YAML格式
       if (decodedContent.contains('proxies:') || decodedContent.contains('proxy-groups:')) {
-        _logger.debug("解码后检测到Clash YAML格式");
+        loggy.debug("解码后检测到Clash YAML格式");
         return SetupParams(
           config: decodedContent,
           params: SetupConfigParams(),
@@ -74,7 +92,7 @@ class ConfigConverter with InfraLogger {
 
       // 解析订阅内容为代理列表
       final proxies = _parseSubscriptionLinks(decodedContent);
-      _logger.debug("成功解析 ${proxies.length} 个代理配置");
+      loggy.debug("成功解析 ${proxies.length} 个代理配置");
 
       if (proxies.isEmpty) {
         throw Exception("没有找到有效的代理配置");
@@ -89,7 +107,7 @@ class ConfigConverter with InfraLogger {
         params: SetupConfigParams(),
       );
     } catch (e) {
-      _logger.error("订阅内容处理失败: $e");
+      loggy.error("订阅内容处理失败: $e");
       rethrow;
     }
   }
@@ -239,7 +257,7 @@ class ConfigConverter with InfraLogger {
       case 'hysteria2':
         return _convertHysteria2(outbound);
       default:
-        _logger.warning("不支持的协议类型: $type");
+        loggy.warning("不支持的协议类型: $type");
         return null;
     }
   }
@@ -553,11 +571,11 @@ class ConfigConverter with InfraLogger {
         }
       } catch (e) {
         final preview = trimmedLine.length > 50 ? '${trimmedLine.substring(0, 50)}...' : trimmedLine;
-        _logger.warning("解析代理链接失败: $preview, 错误: $e");
+        loggy.warning("解析代理链接失败: $preview, 错误: $e");
       }
     }
 
-    _logger.debug("解析订阅链接: 总行数=${lines.length}, 有效代理=${proxies.length}");
+    loggy.debug("解析订阅链接: 总行数=${lines.length}, 有效代理=${proxies.length}");
     return proxies;
   }
 
@@ -580,7 +598,7 @@ class ConfigConverter with InfraLogger {
         'password': parts[1],
       };
     } catch (e) {
-      _logger.warning("SS链接解析失败: $e");
+      loggy.warning("SS链接解析失败: $e");
       return {};
     }
   }
@@ -609,7 +627,7 @@ class ConfigConverter with InfraLogger {
           'ws-opts': {'path': config['path']},
       };
     } catch (e) {
-      _logger.warning("VMess链接解析失败: $e");
+      loggy.warning("VMess链接解析失败: $e");
       return {};
     }
   }
@@ -628,7 +646,7 @@ class ConfigConverter with InfraLogger {
         'sni': uri.queryParameters['sni'] ?? uri.host,
       };
     } catch (e) {
-      _logger.warning("Trojan链接解析失败: $e");
+      loggy.warning("Trojan链接解析失败: $e");
       return {};
     }
   }
@@ -649,7 +667,7 @@ class ConfigConverter with InfraLogger {
           'servername': uri.queryParameters['sni'],
       };
     } catch (e) {
-      _logger.warning("VLess链接解析失败: $e");
+      loggy.warning("VLess链接解析失败: $e");
       return {};
     }
   }
@@ -675,7 +693,7 @@ class ConfigConverter with InfraLogger {
           },
       };
     } catch (e) {
-      _logger.warning("Hysteria2链接解析失败: $e");
+      loggy.warning("Hysteria2链接解析失败: $e");
       return {};
     }
   }

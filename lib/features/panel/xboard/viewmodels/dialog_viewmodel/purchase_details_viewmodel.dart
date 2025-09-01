@@ -28,7 +28,7 @@ class PurchaseDetailsViewModel extends ChangeNotifier {
   }
 
   Future<List<dynamic>> handleSubscribe() async {
-    final accessToken = await getToken();
+    final accessToken = await TokenStorage.getToken();
     if (accessToken == null) {
       print("Access token is null");
       return [];

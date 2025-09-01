@@ -24,7 +24,7 @@ class UserInfoViewModel extends ChangeNotifier {
     print('开始获取用户信息...');
 
     try {
-      final token = await getToken();
+      final token = await TokenStorage.getToken();
       if (token != null) {
         if (kDebugMode) {
           print('Token: $token');

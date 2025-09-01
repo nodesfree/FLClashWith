@@ -9,7 +9,7 @@ import 'package:hiddify/clash/models/models.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:loggy/loggy.dart';
 
-final _logger = Loggy('SimpleClashCore');
+
 
 class ClashCore with InfraLogger {
   Process? _process;
@@ -19,12 +19,12 @@ class ClashCore with InfraLogger {
   StreamSubscription? _errorSubscription;
 
   Future<void> preload() async {
-    _logger.debug("ClashCore预加载");
+    loggy.debug("ClashCore预加载");
     // 这里可以进行一些预加载操作
   }
 
   Future<void> init() async {
-    _logger.debug("ClashCore初始化");
+    loggy.debug("ClashCore初始化");
 
     // 创建工作目录
     _workingDir = '/tmp/hiddify_clash';
@@ -53,7 +53,7 @@ class ClashCore with InfraLogger {
   }
 
   Future<void> setState(CoreState state) async {
-    _logger.debug("设置核心状态: ${state.toJson()}");
+    loggy.debug("设置核心状态: ${state.toJson()}");
     // 这里可以处理状态设置
   }
 
@@ -63,17 +63,17 @@ class ClashCore with InfraLogger {
       final configFile = File(_configPath);
       await configFile.writeAsString(config.config);
 
-      _logger.debug("配置文件已保存到: $_configPath");
+      loggy.debug("配置文件已保存到: $_configPath");
       return ""; // 空字符串表示成功
     } catch (e) {
-      _logger.error("保存配置失败: $e");
+      loggy.error("保存配置失败: $e");
       return "保存配置失败: $e";
     }
   }
 
   Future<void> startListener() async {
     try {
-      _logger.debug("启动ClashMeta进程");
+      loggy.debug("启动ClashMeta进程");
 
       // 尝试使用本地的clash可执行文件
       String clashBinary = 'clash';
@@ -87,12 +87,12 @@ class ClashCore with InfraLogger {
 
           // 如果核心文件不存在，使用基本的HTTP代理模拟
           if (!await File(clashBinary).exists()) {
-            _logger.warning("Clash二进制文件不存在，使用模拟模式");
+            loggy.warning("Clash二进制文件不存在，使用模拟模式");
             return;
           }
         }
       } catch (e) {
-        _logger.warning("无法检查clash二进制文件: $e");
+        loggy.warning("无法检查clash二进制文件: $e");
       }
 
       _process = await Process.start(
@@ -103,16 +103,16 @@ class ClashCore with InfraLogger {
 
       // 监听输出
       _outputSubscription = _process!.stdout.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        _logger.debug("Clash输出: $line");
+        loggy.debug("Clash输出: $line");
       });
 
       _errorSubscription = _process!.stderr.transform(utf8.decoder).transform(const LineSplitter()).listen((line) {
-        _logger.warning("Clash错误: $line");
+        loggy.warning("Clash错误: $line");
       });
 
-      _logger.debug("ClashMeta进程启动成功");
+      loggy.debug("ClashMeta进程启动成功");
     } catch (e) {
-      _logger.error("启动ClashMeta进程失败: $e");
+      loggy.error("启动ClashMeta进程失败: $e");
       rethrow;
     }
   }
@@ -125,19 +125,19 @@ class ClashCore with InfraLogger {
       _process?.kill(ProcessSignal.sigterm);
       await _process?.exitCode;
 
-      _logger.debug("ClashMeta进程已停止");
+      loggy.debug("ClashMeta进程已停止");
     } catch (e) {
-      _logger.error("停止ClashMeta进程失败: $e");
+      loggy.error("停止ClashMeta进程失败: $e");
     }
   }
 
   Future<void> shutdown() async {
     await stopListener();
-    _logger.debug("ClashCore已关闭");
+    loggy.debug("ClashCore已关闭");
   }
 
   void resetConnections() {
-    _logger.debug("重置连接");
+    loggy.debug("重置连接");
     // 这里可以实现连接重置逻辑
   }
 
@@ -167,13 +167,13 @@ class ClashCore with InfraLogger {
   }
 
   Future<String> changeProxy(ChangeProxyParams params) async {
-    _logger.debug("切换代理: ${params.groupName} -> ${params.proxyName}");
+    loggy.debug("切换代理: ${params.groupName} -> ${params.proxyName}");
     // 这里可以实现代理切换逻辑
     return ""; // 空字符串表示成功
   }
 
   Future<Delay> getDelay(String testUrl, String proxyName) async {
-    _logger.debug("测试延迟: $proxyName -> $testUrl");
+    loggy.debug("测试延迟: $proxyName -> $testUrl");
     // 返回模拟的延迟数据
     return Delay(
       name: proxyName,

@@ -33,7 +33,7 @@ class _OrderPageState extends ConsumerState<OrderPage> {
   }
 
   Future<List<Order>> _fetchUserOrders() async {
-    final accessToken = await getToken();
+    final accessToken = await TokenStorage.getToken();
     if (accessToken == null) {
       throw Exception("No access token found.");
     }
@@ -238,7 +238,7 @@ class _OrderPageState extends ConsumerState<OrderPage> {
     }
     final authService = OrderService();
     final tradeNo = order.tradeNo;
-    final accessToken = await getToken();
+    final accessToken = await TokenStorage.getToken();
 
     try {
       final result = await authService.cancelOrder(tradeNo!, accessToken!);

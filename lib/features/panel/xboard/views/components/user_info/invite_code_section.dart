@@ -15,7 +15,7 @@ class InviteCodeSection extends ConsumerWidget {
 
   Future<void> _generateInviteCode(BuildContext context, WidgetRef ref) async {
     final t = ref.watch(translationsProvider);
-    final accessToken = await getToken();
+    final accessToken = await TokenStorage.getToken();
     if (accessToken == null) {
       _showSnackbar(context, t.userInfo.noAccessToken);
       return;
