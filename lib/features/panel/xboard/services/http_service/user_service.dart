@@ -23,7 +23,7 @@ class UserService {
     try {
       final response = await _httpService.getRequest(
         "/api/v1/user/getSubscribe",
-        headers: {'Authorization': token},
+        headers: {'Authorization': 'Bearer $token'},
       );
       return response['status'] == 'success';
     } catch (_) {
@@ -41,7 +41,7 @@ class UserService {
       // 如果新API失败，回退到原有实现
       final result = await _httpService.getRequest(
         "/api/v1/user/getSubscribe",
-        headers: {'Authorization': accessToken},
+        headers: {'Authorization': 'Bearer $accessToken'},
       );
       // ignore: avoid_dynamic_calls
       return result["data"]["subscribe_url"] as String?;
@@ -57,7 +57,7 @@ class UserService {
       // 如果新API失败，回退到原有实现
       final result = await _httpService.getRequest(
         "/api/v1/user/resetSecurity",
-        headers: {'Authorization': accessToken},
+        headers: {'Authorization': 'Bearer $accessToken'},
       );
       return result["data"] as String?;
     }

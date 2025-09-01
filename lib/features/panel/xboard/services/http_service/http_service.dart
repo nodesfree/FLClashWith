@@ -20,6 +20,9 @@ class HttpService {
     final url = Uri.parse('$baseUrl$endpoint');
 
     try {
+      if (kDebugMode) {
+        print("GET $baseUrl$endpoint headers: $headers");
+      }
       final response = await http
           .get(
             url,

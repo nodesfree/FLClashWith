@@ -9,7 +9,7 @@ class SubscriptionService {
     final result = await _httpService.getRequest(
       "/api/v1/user/getSubscribe",
       headers: {
-        'Authorization': accessToken,
+        'Authorization': 'Bearer $accessToken',
       },
     );
 
@@ -29,7 +29,7 @@ class SubscriptionService {
     final result = await _httpService.getRequest(
       "/api/v1/user/resetSecurity",
       headers: {
-        'Authorization': accessToken,
+        'Authorization': 'Bearer $accessToken',
       },
     );
     if (result.containsKey("data")) {

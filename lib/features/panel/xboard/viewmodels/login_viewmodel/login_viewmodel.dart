@@ -82,14 +82,14 @@ class LoginViewModel extends ChangeNotifier {
       findAuthData(result);
 
       if (authData != null && token != null) {
-        await storeToken(authData!);
+        await storeToken(token!);  // 存储token而不是authData
         await _saveCredentials();
 
         // 使用封装好的 Subscription 来更新订阅
         // ignore: use_build_context_synchronously
         await Subscription.updateSubscription(context, ref);
         // 更新 authProvider 状态为已登录
-        ref.read(authProvider.notifier).state = true;
+        ref.read(authProvider.notifier).setLoggedIn(true);
       } else {
         throw Exception("Invalid authentication data.");
       }
