@@ -2,12 +2,9 @@
 // Sing-box配置到Clash配置的转换器
 
 import 'dart:convert';
-import 'dart:io';
-
 import 'package:hiddify/clash/models/models.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:loggy/loggy.dart';
-import 'package:yaml/yaml.dart';
 
 final _logger = Loggy('ConfigConverter');
 
@@ -274,7 +271,7 @@ class ConfigConverter with InfraLogger {
           return {
             'tls': tls['enabled'] ?? false,
             if (tls['server_name'] != null) 'servername': tls['server_name'],
-            'skip-cert-verify': !(tls['verify'] ?? true),
+            'skip-cert-verify': !((tls['verify'] ?? true) as bool),
           };
         }(),
     };
@@ -313,7 +310,7 @@ class ConfigConverter with InfraLogger {
           return {
             'tls': tls['enabled'] ?? false,
             if (tls['server_name'] != null) 'servername': tls['server_name'],
-            'skip-cert-verify': !(tls['verify'] ?? true),
+            'skip-cert-verify': !((tls['verify'] ?? true) as bool),
           };
         }(),
     };
@@ -332,7 +329,7 @@ class ConfigConverter with InfraLogger {
           final tls = outbound['tls'] as Map<String, dynamic>;
           return {
             'sni': tls['server_name'],
-            'skip-cert-verify': !(tls['verify'] ?? true),
+            'skip-cert-verify': !((tls['verify'] ?? true) as bool),
           };
         }(),
     };
@@ -353,7 +350,7 @@ class ConfigConverter with InfraLogger {
           final tls = outbound['tls'] as Map<String, dynamic>;
           return {
             'sni': tls['server_name'],
-            'skip-cert-verify': !(tls['verify'] ?? true),
+            'skip-cert-verify': !((tls['verify'] ?? true) as bool),
           };
         }(),
     };
@@ -374,7 +371,7 @@ class ConfigConverter with InfraLogger {
           final tls = outbound['tls'] as Map<String, dynamic>;
           return {
             'sni': tls['server_name'],
-            'skip-cert-verify': !(tls['verify'] ?? true),
+            'skip-cert-verify': !((tls['verify'] ?? true) as bool),
           };
         }(),
     };

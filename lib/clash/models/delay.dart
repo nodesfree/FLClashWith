@@ -13,9 +13,9 @@ class Delay {
 
   factory Delay.fromJson(Map<String, dynamic> json) {
     return Delay(
-      name: json['name'] ?? '',
-      value: json['value'] ?? -1,
-      url: json['url'] ?? '',
+      name: (json['name'] ?? '') as String,
+      value: (json['value'] ?? -1) as int,
+      url: (json['url'] ?? '') as String,
     );
   }
 

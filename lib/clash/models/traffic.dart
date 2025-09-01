@@ -11,8 +11,8 @@ class Traffic {
 
   factory Traffic.fromMap(Map<String, dynamic> map) {
     return Traffic(
-      up: map['up'] ?? 0,
-      down: map['down'] ?? 0,
+      up: (map['up'] ?? 0) as int,
+      down: (map['down'] ?? 0) as int,
     );
   }
 }

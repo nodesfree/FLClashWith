@@ -8,3 +8,4 @@ export 'package:hiddify/clash/models/group.dart';
 export 'package:hiddify/clash/models/proxy.dart';
 export 'package:hiddify/clash/models/traffic.dart';
 export 'package:hiddify/clash/models/delay.dart';
+export 'package:hiddify/clash/models/change_proxy_params.dart';

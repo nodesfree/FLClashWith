@@ -25,9 +25,9 @@ class Group {
 
   factory Group.fromJson(Map<String, dynamic> json) {
     return Group(
-      tag: json['name'] ?? '',
-      type: _parseGroupType(json['type'] ?? ''),
-      now: json['now'] ?? '',
+      tag: (json['name'] ?? '') as String,
+      type: _parseGroupType((json['type'] ?? '') as String),
+      now: (json['now'] ?? '') as String,
       all: (json['all'] as List? ?? []).map((e) => Proxy.fromJson(e as Map<String, dynamic>)).toList(),
     );
   }

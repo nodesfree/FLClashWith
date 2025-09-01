@@ -2,7 +2,7 @@
 // ClashMeta核心适配器，实现SingboxService接口
 
 import 'dart:async';
-import 'dart:convert';
+
 import 'dart:io';
 
 import 'package:fpdart/fpdart.dart';
@@ -160,12 +160,11 @@ class ClashAdapterService with InfraLogger implements SingboxService {
         }
 
         final configContent = await configFile.readAsString();
-        final clashConfig = await _converter.convertSingboxToClash(configContent);
-
+                var clashConfig = await _converter.convertSingboxToClash(configContent);
+        
         // 应用当前选项
         if (_currentOptions != null) {
-          final enhancedConfig = _enhanceConfigWithOptions(clashConfig, _currentOptions!);
-          clashConfig = enhancedConfig;
+          clashConfig = _enhanceConfigWithOptions(clashConfig, _currentOptions!);
         }
 
         // 启动ClashCore
@@ -270,6 +269,8 @@ class ClashAdapterService with InfraLogger implements SingboxService {
           downlink: traffic.down,
           uplinkTotal: totalTraffic.up,
           downlinkTotal: totalTraffic.down,
+          connectionsIn: 0,
+          connectionsOut: 0,
         );
       } catch (e) {
         _logger.error("获取统计信息失败: $e");
@@ -278,6 +279,8 @@ class ClashAdapterService with InfraLogger implements SingboxService {
           downlink: 0,
           uplinkTotal: 0,
           downlinkTotal: 0,
+          connectionsIn: 0,
+          connectionsOut: 0,
         );
       }
     });
@@ -288,7 +291,7 @@ class ClashAdapterService with InfraLogger implements SingboxService {
     return Stream.periodic(const Duration(seconds: 2)).asyncMap((_) async {
       try {
         final groups = await _clashCore.getProxiesGroups();
-        return groups.map(_convertGroupToSingboxOutbound).toList();
+        return groups.map<SingboxOutboundGroup>((group) => _convertGroupToSingboxOutbound(group)).toList();
       } catch (e) {
         _logger.error("获取代理组失败: $e");
         return <SingboxOutboundGroup>[];
@@ -306,9 +309,8 @@ class ClashAdapterService with InfraLogger implements SingboxService {
   TaskEither<String, Unit> selectOutbound(String groupTag, String outboundTag) {
     return TaskEither(() async {
       try {
-        final result = await _clashCore.changeProxy(
-          ChangeProxyParams(groupName: groupTag, proxyName: outboundTag),
-        );
+        final params = ChangeProxyParams(groupName: groupTag, proxyName: outboundTag);
+        final result = await _clashCore.changeProxy(params);
 
         if (result.isNotEmpty) {
           return left("切换代理失败: $result");
@@ -398,15 +400,17 @@ class ClashAdapterService with InfraLogger implements SingboxService {
   }
 
   // 辅助方法：转换代理组
-  SingboxOutboundGroup _convertGroupToSingboxOutbound(Group group) {
+  SingboxOutboundGroup _convertGroupToSingboxOutbound(dynamic group) {
     return SingboxOutboundGroup(
-      tag: group.tag,
-      type: group.type.name,
-      selected: group.now,
-      items: group.all
+      tag: group.tag as String,
+      type: (group.type as GroupType).name,
+      selected: group.now as String,
+      items: (group.all as List)
           .map((proxy) => SingboxOutbound(
-                tag: proxy.tag,
-                type: proxy.type,
+                tag: proxy.tag as String,
+                type: proxy.type as String,
+                server: "",
+                serverPort: 0,
               ))
           .toList(),
     );

@@ -11,8 +11,8 @@ class Proxy {
 
   factory Proxy.fromJson(Map<String, dynamic> json) {
     return Proxy(
-      tag: json['name'] ?? '',
-      type: json['type'] ?? '',
+      tag: (json['name'] ?? '') as String,
+      type: (json['type'] ?? '') as String,
     );
   }
 }
