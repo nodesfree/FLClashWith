@@ -7,6 +7,9 @@ import 'dart:io';
 import 'package:hiddify/clash/config_converter.dart';
 import 'package:hiddify/features/panel/xboard/services/http_service/subscription_service.dart';
 import 'package:hiddify/features/panel/xboard/utils/storage/token_storage.dart';
+import 'package:hiddify/features/profile/data/profile_data_providers.dart';
+import 'package:hiddify/features/profile/model/profile_entity.dart';
+import 'package:hiddify/features/profile/overview/profiles_overview_notifier.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -458,7 +461,6 @@ class PanelSubscriptionAdapter with InfraLogger {
       }
 
       // 3. 创建新的本地配置文件Profile
-      final configFile = File(configPath);
       final newProfile = LocalProfileEntity(
         id: 'panel_subscription_${DateTime.now().millisecondsSinceEpoch}',
         active: true,

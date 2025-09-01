@@ -6,11 +6,14 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:fpdart/fpdart.dart';
-import 'package:hiddify/clash/simple_clash_core.dart';
 import 'package:hiddify/clash/config_converter.dart';
+import 'package:hiddify/clash/models/models.dart';
+import 'package:hiddify/clash/simple_clash_core.dart';
 import 'package:hiddify/core/model/directories.dart';
 import 'package:hiddify/singbox/model/singbox_config_option.dart';
 import 'package:hiddify/singbox/model/singbox_outbound.dart';
+import 'package:hiddify/singbox/model/singbox_proxy_type.dart';
+
 import 'package:hiddify/singbox/model/singbox_stats.dart';
 import 'package:hiddify/singbox/model/singbox_status.dart';
 import 'package:hiddify/singbox/model/warp_account.dart';
@@ -403,15 +406,14 @@ class ClashAdapterService with InfraLogger implements SingboxService {
   SingboxOutboundGroup _convertGroupToSingboxOutbound(dynamic group) {
     return SingboxOutboundGroup(
       tag: group.tag as String,
-      type: (group.type as GroupType).name,
+      type: ProxyType.fromJson((group.type as GroupType).name),
       selected: group.now as String,
       items: (group.all as List)
-          .map((proxy) => SingboxOutbound(
+          .map((proxy) => SingboxOutboundGroupItem(
                 tag: proxy.tag as String,
-                type: proxy.type as String,
-                server: "",
-                serverPort: 0,
-              ))
+                type: ProxyType.fromJson(proxy.type as String),
+                urlTestDelay: 0,
+              ),)
           .toList(),
     );
   }
