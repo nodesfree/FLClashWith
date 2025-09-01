@@ -8,4 +8,4 @@ export 'package:hiddify/clash/models/proxy.dart';
 export 'package:hiddify/clash/models/traffic.dart';
 export 'package:hiddify/clash/models/delay.dart';
 export 'package:hiddify/clash/models/change_proxy_params.dart';
-export 'package:hiddify/clash/models/clash_models.dart';
+// Note: clash_models.dart also exports ChangeProxyParams, using the one above to avoid conflicts

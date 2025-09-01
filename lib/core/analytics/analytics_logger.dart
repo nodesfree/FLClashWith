@@ -1,8 +1,10 @@
 import 'package:hiddify/utils/sentry_utils.dart';
 import 'package:loggy/loggy.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+// import 'package:sentry_flutter/sentry_flutter.dart'; // Temporarily disabled
 
 // modified version of https://github.com/getsentry/sentry-dart/tree/main/logging
+// Temporarily disabled due to Sentry compilation issues
+/* 
 class SentryLoggyIntegration extends LoggyPrinter
     implements Integration<SentryOptions> {
   SentryLoggyIntegration({
@@ -86,13 +88,15 @@ extension LogRecordX on LogRecord {
     );
   }
 }
+*/
 
+// Placeholder extension to avoid compilation errors
 extension LogLevelX on LogLevel {
-  SentryLevel? toSentryLevel() => switch (this) {
-        LogLevel.all || LogLevel.debug => SentryLevel.debug,
-        LogLevel.info => SentryLevel.info,
-        LogLevel.warning => SentryLevel.warning,
-        LogLevel.error => SentryLevel.error,
+  String? toSentryLevel() => switch (this) {
+        LogLevel.all || LogLevel.debug => "debug",
+        LogLevel.info => "info", 
+        LogLevel.warning => "warning",
+        LogLevel.error => "error",
         _ => null,
       };
 }

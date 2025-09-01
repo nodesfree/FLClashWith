@@ -2,6 +2,7 @@
 // Sing-box配置到Clash配置的转换器
 
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:hiddify/clash/models/models.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:loggy/loggy.dart';
@@ -41,16 +42,43 @@ class ConfigConverter with InfraLogger {
   /// 处理订阅内容（可能包含多个配置）
   Future<SetupParams> _handleSubscriptionContent(String content) async {
     try {
+      _logger.debug("处理订阅内容，长度: ${content.length}");
+      
+      // 首先检查是否是已经是YAML格式的Clash配置
+      if (content.contains('proxies:') || content.contains('proxy-groups:')) {
+        _logger.debug("检测到Clash YAML格式，直接使用");
+        return SetupParams(
+          config: content,
+          params: SetupConfigParams(),
+        );
+      }
+
       // 尝试base64解码
       String decodedContent;
       try {
-        decodedContent = String.fromCharCodes(base64.decode(content));
+        decodedContent = String.fromCharCodes(base64.decode(content.trim()));
+        _logger.debug("Base64解码成功，解码后长度: ${decodedContent.length}");
       } catch (e) {
         decodedContent = content;
+        _logger.debug("Base64解码失败，使用原始内容");
+      }
+
+      // 再次检查解码后是否是YAML格式
+      if (decodedContent.contains('proxies:') || decodedContent.contains('proxy-groups:')) {
+        _logger.debug("解码后检测到Clash YAML格式");
+        return SetupParams(
+          config: decodedContent,
+          params: SetupConfigParams(),
+        );
       }
 
       // 解析订阅内容为代理列表
       final proxies = _parseSubscriptionLinks(decodedContent);
+      _logger.debug("成功解析 ${proxies.length} 个代理配置");
+
+      if (proxies.isEmpty) {
+        throw Exception("没有找到有效的代理配置");
+      }
 
       // 构建基础Clash配置
       final clashConfig = _buildBasicClashConfig(proxies);
@@ -508,36 +536,148 @@ class ConfigConverter with InfraLogger {
 
       try {
         if (trimmedLine.startsWith('ss://')) {
-          proxies.add(_parseShadowsocksLink(trimmedLine));
+          final proxy = _parseShadowsocksLink(trimmedLine);
+          if (proxy.isNotEmpty) proxies.add(proxy);
         } else if (trimmedLine.startsWith('vmess://')) {
-          proxies.add(_parseVmessLink(trimmedLine));
+          final proxy = _parseVmessLink(trimmedLine);
+          if (proxy.isNotEmpty) proxies.add(proxy);
         } else if (trimmedLine.startsWith('trojan://')) {
-          proxies.add(_parseTrojanLink(trimmedLine));
+          final proxy = _parseTrojanLink(trimmedLine);
+          if (proxy.isNotEmpty) proxies.add(proxy);
+        } else if (trimmedLine.startsWith('vless://')) {
+          final proxy = _parseVlessLink(trimmedLine);
+          if (proxy.isNotEmpty) proxies.add(proxy);
+        } else if (trimmedLine.startsWith('hysteria2://')) {
+          final proxy = _parseHysteria2Link(trimmedLine);
+          if (proxy.isNotEmpty) proxies.add(proxy);
         }
       } catch (e) {
-        _logger.warning("解析代理链接失败: $trimmedLine, 错误: $e");
+        final preview = trimmedLine.length > 50 ? '${trimmedLine.substring(0, 50)}...' : trimmedLine;
+        _logger.warning("解析代理链接失败: $preview, 错误: $e");
       }
     }
 
+    _logger.debug("解析订阅链接: 总行数=${lines.length}, 有效代理=${proxies.length}");
     return proxies;
   }
 
   /// 解析Shadowsocks链接
   Map<String, dynamic> _parseShadowsocksLink(String link) {
-    // 实现SS链接解析
-    return {};
+    try {
+      // ss://方法:端口@服务器地址#备注
+      final uri = Uri.parse(link);
+      final userInfo = String.fromCharCodes(base64.decode(uri.userInfo));
+      final parts = userInfo.split(':');
+      
+      if (parts.length != 2) return {};
+      
+      return {
+        'name': uri.fragment.isNotEmpty ? uri.fragment : 'SS-${uri.host}',
+        'type': 'ss',
+        'server': uri.host,
+        'port': uri.port,
+        'cipher': parts[0],
+        'password': parts[1],
+      };
+    } catch (e) {
+      _logger.warning("SS链接解析失败: $e");
+      return {};
+    }
   }
 
   /// 解析VMess链接
   Map<String, dynamic> _parseVmessLink(String link) {
-    // 实现VMess链接解析
-    return {};
+    try {
+      // vmess://base64编码的JSON配置
+      final base64String = link.substring(8); // 移除 "vmess://"
+      final decodedJson = String.fromCharCodes(base64.decode(base64String));
+      final config = jsonDecode(decodedJson) as Map<String, dynamic>;
+      
+      return {
+        'name': config['ps'] ?? 'VMess-${config['add']}',
+        'type': 'vmess',
+        'server': config['add'],
+        'port': int.tryParse(config['port'].toString()) ?? 443,
+        'uuid': config['id'],
+        'alterId': int.tryParse(config['aid'].toString()) ?? 0,
+        'cipher': config['scy'] ?? 'auto',
+        'network': config['net'] ?? 'tcp',
+        'tls': config['tls'] == 'tls',
+        if (config['host'] != null && config['host'].toString().isNotEmpty)
+          'servername': config['host'],
+        if (config['path'] != null && config['path'].toString().isNotEmpty)
+          'ws-opts': {'path': config['path']},
+      };
+    } catch (e) {
+      _logger.warning("VMess链接解析失败: $e");
+      return {};
+    }
   }
 
   /// 解析Trojan链接
   Map<String, dynamic> _parseTrojanLink(String link) {
-    // 实现Trojan链接解析
-    return {};
+    try {
+      final uri = Uri.parse(link);
+      
+      return {
+        'name': uri.fragment.isNotEmpty ? uri.fragment : 'Trojan-${uri.host}',
+        'type': 'trojan',
+        'server': uri.host,
+        'port': uri.port,
+        'password': uri.userInfo,
+        'sni': uri.queryParameters['sni'] ?? uri.host,
+      };
+    } catch (e) {
+      _logger.warning("Trojan链接解析失败: $e");
+      return {};
+    }
+  }
+
+  /// 解析VLess链接
+  Map<String, dynamic> _parseVlessLink(String link) {
+    try {
+      final uri = Uri.parse(link);
+      
+      return {
+        'name': uri.fragment.isNotEmpty ? uri.fragment : 'VLess-${uri.host}',
+        'type': 'vless',
+        'server': uri.host,
+        'port': uri.port,
+        'uuid': uri.userInfo,
+        'tls': uri.queryParameters['security'] == 'tls',
+        if (uri.queryParameters['sni'] != null)
+          'servername': uri.queryParameters['sni'],
+      };
+    } catch (e) {
+      _logger.warning("VLess链接解析失败: $e");
+      return {};
+    }
+  }
+
+  /// 解析Hysteria2链接
+  Map<String, dynamic> _parseHysteria2Link(String link) {
+    try {
+      final uri = Uri.parse(link);
+      
+      return {
+        'name': uri.fragment.isNotEmpty ? uri.fragment : 'Hysteria2-${uri.host}',
+        'type': 'hysteria2',
+        'server': uri.host,
+        'port': uri.port,
+        'password': uri.userInfo,
+        'sni': uri.queryParameters['sni'],
+        'skip-cert-verify': uri.queryParameters['insecure'] == '1',
+        if (uri.queryParameters['obfs'] != null)
+          'obfs': {
+            'type': uri.queryParameters['obfs'],
+            if (uri.queryParameters['obfs-password'] != null)
+              'password': uri.queryParameters['obfs-password'],
+          },
+      };
+    } catch (e) {
+      _logger.warning("Hysteria2链接解析失败: $e");
+      return {};
+    }
   }
 
   /// 构建基础Clash配置（用于订阅）

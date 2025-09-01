@@ -4,12 +4,15 @@ import 'package:dio/dio.dart';
 import 'package:hiddify/core/model/failures.dart';
 import 'package:hiddify/features/proxy/model/proxy_failure.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+// import 'package:sentry_flutter/sentry_flutter.dart'; // Temporarily disabled
 
+// Temporarily disabled Sentry functions
+/*
 FutureOr<SentryEvent?> sentryBeforeSend(SentryEvent event, {Hint? hint}) {
   if (canSendEvent(event.throwable)) return event;
   return null;
 }
+*/
 
 bool canSendEvent(dynamic throwable) {
   return switch (throwable) {

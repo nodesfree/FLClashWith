@@ -49,9 +49,8 @@ dependencies:
   url_launcher: ^6.2.5
   vclibs: ^0.1.2
   launch_at_startup: ^0.2.2
-# Temporarily disabled due to C++ compilation issues
-  # sentry_flutter: ^7.16.1
-  # sentry_dart_plugin: ^1.7.1
+  sentry_flutter: ^7.16.1
+  sentry_dart_plugin: ^1.7.1
   combine: ^0.5.7
   path: ^1.8.3
   loggy: ^2.0.3

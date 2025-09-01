@@ -1,31 +1,27 @@
-import 'dart:io';
+// Analytics filter - Sentry functionality temporarily disabled
+import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:hiddify/core/model/failures.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:hiddify/features/proxy/model/proxy_failure.dart';
 
-FutureOr<SentryEvent?> sentryBeforeSend(SentryEvent event, {Hint? hint}) {
-  if (!canSendEvent(event.throwable)) return null;
-  return event.copyWith(
-    user: SentryUser(email: "", username: "", ipAddress: "0.0.0.0"),
-  );
+// Placeholder for Sentry event handling
+Map<String, dynamic>? sentryBeforeSend(Map<String, dynamic> event, Map<String, dynamic>? hint) {
+  // Temporarily disabled - would normally filter events before sending to Sentry
+  return null;
+}
+
+Map<String, dynamic> createUserInfo() {
+  return {
+    'email': '',
+    'username': '', 
+    'ipAddress': '0.0.0.0',
+  };
 }
 
 bool canSendEvent(dynamic throwable) {
   return switch (throwable) {
     UnexpectedFailure(:final error) => canSendEvent(error),
-    DioException _ => false,
-    SocketException _ => false,
-    HttpException _ => false,
-    HandshakeException _ => false,
-    ExpectedFailure _ => false,
-    ExpectedMeasuredFailure _ => false,
-    _ => true,
+    ProxyFailure _ => false,
+    _ => false,
   };
 }
-
-bool canLogEvent(dynamic throwable) => switch (throwable) {
-      ExpectedMeasuredFailure _ => true,
-      _ => canSendEvent(throwable),
-    };

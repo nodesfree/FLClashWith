@@ -466,15 +466,12 @@ class PanelSubscriptionAdapter with InfraLogger {
         active: true,
         name: 'Panel Subscription',
         lastUpdate: DateTime.now(),
-        path: configPath,
       );
 
-      // 4. 添加到Profile系统
-      await ref.read(addProfileProvider.notifier).addLocalProfile(newProfile);
-
-      // 5. 设置为活跃Profile
-      // ignore: invalid_use_of_protected_member, invalid_use_of_visible_for_testing_member
-      ref.read(activeProfileProvider.notifier).update((_) => newProfile);
+      // 4. 添加到Profile系统 - 暂时简化，直接使用配置文件
+      // TODO: 集成到HiddifyWithPanels的Profile系统
+      loggy.info("面板订阅配置已保存到: $configPath");
+      loggy.info("新Profile创建: ${newProfile.name} (${newProfile.id})");
 
       _logger.debug("Profile系统更新完成");
     } catch (e) {

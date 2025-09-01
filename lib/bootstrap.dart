@@ -29,7 +29,7 @@ import 'package:hiddify/features/window/notifier/window_notifier.dart';
 import 'package:hiddify/singbox/service/singbox_service_provider.dart';
 import 'package:hiddify/utils/utils.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:sentry_flutter/sentry_flutter.dart';
+// import 'package:sentry_flutter/sentry_flutter.dart'; // Temporarily disabled
 
 Future<void> lazyBootstrap(
   WidgetsBinding widgetsBinding,
@@ -204,9 +204,7 @@ Future<void> lazyBootstrap(
   runApp(
     ProviderScope(
       parent: container,
-      child: SentryUserInteractionWidget(
-        child: const App(),
-      ),
+      child: const App(),
     ),
   );
 
