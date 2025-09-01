@@ -1,64 +1,62 @@
-// lib/features/panel/v2board/services/v2board_api_service.dart
-// V2Board API服务 - 完整的API接口实现
-
-import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:hiddify/utils/utils.dart';
-import 'package:hiddify/features/panel/xboard/services/http_service/domain_service.dart';
+import 'package:hiddify/utils/custom_loggers.dart';
+import '../../xboard/services/http_service/domain_service.dart';
 
+/// V2Board API 服务类
+/// 提供与 V2Board 后端 API 的交互功能
 class V2BoardApiService with InfraLogger {
-  final Dio _dio;
-  String? _baseUrl;
+  late final Dio _dio;
+  static const String _defaultBaseUrl = 'https://api.example.com';
 
-  V2BoardApiService({
-    String? baseUrl,
-    Dio? dio,
-  })  : _baseUrl = baseUrl,
-        _dio = dio ?? Dio() {
-    _setupInterceptors();
-  }
+  V2BoardApiService() {
+    _dio = Dio();
+    _dio.options.connectTimeout = const Duration(seconds: 30);
+    _dio.options.receiveTimeout = const Duration(seconds: 30);
+    _dio.options.sendTimeout = const Duration(seconds: 30);
 
-  // 默认基础URL - 可以通过DomainService动态获取
-  static const String _defaultBaseUrl = 'https://kajemoa-1332194985.cos.ap-shanghai.myqcloud.com/acc/acce.json';
-    
-  // 获取API基础URL
-  Future<String> get baseUrl async {
-    try {
-      // 尝试从DomainService获取有效域名
-      final validDomain = await DomainService.fetchValidDomain();
-      return '$validDomain/api/v1';
-    } catch (e) {
-      loggy.warning('无法从DomainService获取域名，使用默认域名: $e');
-      return '$_defaultBaseUrl/api/v1';
-    }
-  }
-
-  void _setupInterceptors() {
+    // 添加拦截器
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) {
-          loggy.debug('API Request: ${options.method} ${options.uri}');
-          if (options.data != null) {
-            loggy.debug('Request Data: ${options.data}');
-          }
+          loggy.debug('请求: ${options.method} ${options.uri}');
           handler.next(options);
         },
         onResponse: (response, handler) {
-          loggy.debug('API Response: ${response.statusCode} ${response.requestOptions.uri}');
+          loggy.debug('响应: ${response.statusCode} ${response.requestOptions.uri}');
           handler.next(response);
         },
         onError: (error, handler) {
-          loggy.error('API Error: ${error.requestOptions.uri} - ${error.message}');
+          loggy.error('请求错误: ${error.message}');
           handler.next(error);
         },
       ),
     );
   }
 
+  /// 获取API基础URL
+  Future<String> get baseUrl async {
+    try {
+      final validDomain = await DomainService.fetchValidDomain();
+      if (validDomain != null) {
+        loggy.info('使用有效域名: $validDomain');
+        return validDomain;
+      } else {
+        loggy.warning('无法获取有效域名，使用默认域名: $_defaultBaseUrl');
+        return _defaultBaseUrl;
+      }
+    } catch (e) {
+      loggy.error('获取域名失败: $e，使用默认域名: $_defaultBaseUrl');
+      return _defaultBaseUrl;
+    }
+  }
+
   // ============ 认证相关 API ============
 
   /// 用户登录
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
     try {
       final apiBaseUrl = await baseUrl;
       final response = await _dio.post(
@@ -81,17 +79,14 @@ class V2BoardApiService with InfraLogger {
     required String password,
     String? inviteCode,
     String? emailCode,
-    String? recaptchaData,
   }) async {
     try {
       final data = <String, dynamic>{
         'email': email,
         'password': password,
       };
-
       if (inviteCode != null) data['invite_code'] = inviteCode;
       if (emailCode != null) data['email_code'] = emailCode;
-      if (recaptchaData != null) data['recaptcha_data'] = recaptchaData;
 
       final apiBaseUrl = await baseUrl;
       final response = await _dio.post(
@@ -105,23 +100,8 @@ class V2BoardApiService with InfraLogger {
     }
   }
 
-  /// 忘记密码
-  Future<Map<String, dynamic>> forgetPassword(String email) async {
-    try {
-      final apiBaseUrl = await baseUrl;
-      final response = await _dio.post(
-        '$apiBaseUrl/passport/auth/forget',
-        data: {'email': email},
-      );
-      return response.data as Map<String, dynamic>;
-    } catch (e) {
-      loggy.error('忘记密码请求失败: $e');
-      rethrow;
-    }
-  }
-
   /// 发送邮箱验证码
-  Future<Map<String, dynamic>> sendEmailVerify(String email) async {
+  Future<Map<String, dynamic>> sendEmailCode(String email) async {
     try {
       final apiBaseUrl = await baseUrl;
       final response = await _dio.post(
@@ -130,12 +110,52 @@ class V2BoardApiService with InfraLogger {
       );
       return response.data as Map<String, dynamic>;
     } catch (e) {
-      loggy.error('发送验证码失败: $e');
+      loggy.error('发送邮箱验证码失败: $e');
       rethrow;
     }
   }
 
-  // ============ 用户信息 API ============
+  /// 忘记密码
+  Future<Map<String, dynamic>> forgetPassword({
+    required String email,
+    required String password,
+    required String emailCode,
+  }) async {
+    try {
+      final apiBaseUrl = await baseUrl;
+      final response = await _dio.post(
+        '$apiBaseUrl/passport/auth/forget',
+        data: {
+          'email': email,
+          'password': password,
+          'email_code': emailCode,
+        },
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      loggy.error('重置密码失败: $e');
+      rethrow;
+    }
+  }
+
+  /// 退出登录
+  Future<Map<String, dynamic>> logout(String token) async {
+    try {
+      final apiBaseUrl = await baseUrl;
+      final response = await _dio.post(
+        '$apiBaseUrl/passport/auth/logout',
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      loggy.error('退出登录失败: $e');
+      rethrow;
+    }
+  }
+
+  // ============ 用户相关 API ============
 
   /// 获取用户信息
   Future<Map<String, dynamic>> getUserInfo(String token) async {
@@ -147,7 +167,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取用户信息失败: $e');
       rethrow;
@@ -164,7 +184,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取用户统计失败: $e');
       rethrow;
@@ -213,7 +233,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('重置订阅失败: $e');
       rethrow;
@@ -244,7 +264,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('创建订单失败: $e');
       rethrow;
@@ -269,7 +289,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('订单结算失败: $e');
       rethrow;
@@ -286,7 +306,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取订单列表失败: $e');
       rethrow;
@@ -303,7 +323,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取支付方式失败: $e');
       rethrow;
@@ -322,7 +342,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取套餐列表失败: $e');
       rethrow;
@@ -341,7 +361,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取服务器列表失败: $e');
       rethrow;
@@ -360,7 +380,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('生成邀请码失败: $e');
       rethrow;
@@ -377,7 +397,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取邀请列表失败: $e');
       rethrow;
@@ -394,7 +414,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取邀请详情失败: $e');
       rethrow;
@@ -423,7 +443,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('创建工单失败: $e');
       rethrow;
@@ -440,7 +460,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取工单列表失败: $e');
       rethrow;
@@ -465,7 +485,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('回复工单失败: $e');
       rethrow;
@@ -486,7 +506,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('关闭工单失败: $e');
       rethrow;
@@ -505,7 +525,7 @@ class V2BoardApiService with InfraLogger {
           responseType: ResponseType.plain,
         ),
       );
-      return response.data;
+      return response.data as String;
     } catch (e) {
       loggy.error('获取订阅配置失败: $e');
       rethrow;
@@ -524,7 +544,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取系统配置失败: $e');
       rethrow;
@@ -553,7 +573,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('验证优惠券失败: $e');
       rethrow;
@@ -572,7 +592,7 @@ class V2BoardApiService with InfraLogger {
           headers: {'Authorization': 'Bearer $token'},
         ),
       );
-      return Map<String, dynamic>.from(response.data);
+      return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取流量日志失败: $e');
       rethrow;
