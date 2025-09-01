@@ -1,7 +1,9 @@
 // services/user_service.dart
 import 'package:hiddify/features/panel/xboard/models/user_info_model.dart';
-import 'package:hiddify/features/panel/xboard/services/http_service/http_service.dart';
 import 'package:hiddify/features/panel/v2board/services/v2board_api_service.dart';
+import 'package:hiddify/features/panel/xboard/services/http_service/http_service.dart';
+import 'package:hiddify/features/panel/xboard/services/token_expiry_handler.dart';
+import 'package:hiddify/features/panel/xboard/utils/storage/token_storage.dart';
 
 class UserService {
   final HttpService _httpService = HttpService();
@@ -38,6 +40,16 @@ class UserService {
       // ignore: avoid_dynamic_calls
       return result["data"]["subscribe_url"] as String?;
     } catch (e) {
+      // 检查是否是token过期错误
+        if (TokenExpiryHandler.isTokenExpiredError(e)) {
+          // 使用全局token过期处理器
+          await TokenExpiryHandler.handleTokenExpiry(
+            context: null,
+            ref: null,
+            errorMessage: e.toString(),
+          );
+          rethrow;
+        }
       // 如果新API失败，回退到原有实现
       final result = await _httpService.getRequest(
         "/api/v1/user/getSubscribe",

@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:hiddify/clash/panel_subscription_adapter.dart';
 import 'package:hiddify/core/localization/translations.dart';
-import 'package:hiddify/features/panel/xboard/services/http_service/subscription_service.dart';
+import 'package:hiddify/features/panel/xboard/services/http_service/user_service.dart';
 import 'package:hiddify/features/panel/xboard/utils/storage/token_storage.dart';
 import 'package:hiddify/features/profile/data/profile_data_providers.dart';
 import 'package:hiddify/features/profile/model/profile_entity.dart';
@@ -13,7 +13,7 @@ import 'package:hiddify/features/profile/overview/profiles_overview_notifier.dar
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 
 class Subscription {
-  static final SubscriptionService _subscriptionService = SubscriptionService();
+  static final UserService _userService = UserService();
   static final PanelSubscriptionAdapter _panelAdapter = PanelSubscriptionAdapter();
 
   // 公共方法：处理获取新订阅链接的逻辑（使用ClashMeta适配器）
@@ -31,12 +31,12 @@ class Subscription {
 
       if (success) {
         // 显示成功提示
-        _showSnackbar(context, getSubscriptionLink == _subscriptionService.resetSubscriptionLink ? t.userInfo.subscriptionResetSuccess : t.userInfo.subscriptionUpdateSuccess);
+        _showSnackbar(context, getSubscriptionLink == _userService.resetSubscriptionLink ? t.userInfo.subscriptionResetSuccess : t.userInfo.subscriptionUpdateSuccess);
       } else {
         throw Exception("订阅更新失败");
       }
     } catch (e) {
-      _showSnackbar(context, "${getSubscriptionLink == _subscriptionService.resetSubscriptionLink ? t.userInfo.subscriptionResetError : t.userInfo.subscriptionUpdateError} $e");
+      _showSnackbar(context, "${getSubscriptionLink == _userService.resetSubscriptionLink ? t.userInfo.subscriptionResetError : t.userInfo.subscriptionUpdateError} $e");
     }
   }
 
@@ -45,7 +45,7 @@ class Subscription {
     BuildContext context,
     WidgetRef ref,
   ) async {
-    await _handleSubscription(context, ref, _subscriptionService.getSubscriptionLink);
+    await _handleSubscription(context, ref, _userService.getSubscriptionLink);
   }
 
   // 重置订阅的方法
@@ -56,7 +56,7 @@ class Subscription {
     await _handleSubscription(
       context,
       ref,
-      _subscriptionService.resetSubscriptionLink,
+      _userService.resetSubscriptionLink,
     );
   }
 

@@ -6,7 +6,7 @@ import '../../xboard/services/http_service/domain_service.dart';
 /// 提供与 V2Board 后端 API 的交互功能
 class V2BoardApiService with InfraLogger {
   late final Dio _dio;
-  static const String _defaultBaseUrl = 'https://api.example.com';
+  static const String _defaultBaseUrl = 'https://huswno28nh10bz52j7p3.vpacr.com';
 
   V2BoardApiService() {
     _dio = Dio();
@@ -39,14 +39,14 @@ class V2BoardApiService with InfraLogger {
       final validDomain = await DomainService.fetchValidDomain();
       if (validDomain != null) {
         loggy.info('使用有效域名: $validDomain');
-        return validDomain;
+        return '$validDomain/api/v1';
       } else {
         loggy.warning('无法获取有效域名，使用默认域名: $_defaultBaseUrl');
-        return _defaultBaseUrl;
+        return '$_defaultBaseUrl/api/v1';
       }
     } catch (e) {
       loggy.error('获取域名失败: $e，使用默认域名: $_defaultBaseUrl');
-      return _defaultBaseUrl;
+      return '$_defaultBaseUrl/api/v1';
     }
   }
 
@@ -207,6 +207,9 @@ class V2BoardApiService with InfraLogger {
         loggy.info('用户信息验证成功: ${userInfoResponse.data}');
       } catch (e) {
         loggy.error('Token验证失败: $e');
+        if (e is DioException && e.response?.statusCode == 403) {
+          throw Exception('Token已过期或无效，请重新登录');
+        }
         rethrow;
       }
       
@@ -219,6 +222,9 @@ class V2BoardApiService with InfraLogger {
       return response.data as Map<String, dynamic>;
     } catch (e) {
       loggy.error('获取订阅信息失败: $e');
+      if (e is DioException && e.response?.statusCode == 403) {
+        throw Exception('Token已过期或无效，请重新登录');
+      }
       rethrow;
     }
   }

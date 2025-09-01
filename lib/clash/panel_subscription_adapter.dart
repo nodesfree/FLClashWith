@@ -5,7 +5,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:hiddify/clash/config_converter.dart';
-import 'package:hiddify/features/panel/xboard/services/http_service/subscription_service.dart';
+import 'package:hiddify/features/panel/xboard/services/http_service/user_service.dart';
+import 'package:hiddify/features/panel/xboard/services/token_expiry_handler.dart';
 import 'package:hiddify/features/panel/xboard/utils/storage/token_storage.dart';
 import 'package:hiddify/features/profile/data/profile_data_providers.dart';
 import 'package:hiddify/features/profile/model/profile_entity.dart';
@@ -18,7 +19,7 @@ import 'package:loggy/loggy.dart';
 final _logger = Loggy('PanelSubscriptionAdapter');
 
 class PanelSubscriptionAdapter with InfraLogger {
-  final SubscriptionService _subscriptionService = SubscriptionService();
+  final UserService _userService = UserService();
   final ConfigConverter _configConverter = ConfigConverter();
 
   /// 获取面板订阅并转换为Clash配置
@@ -27,7 +28,7 @@ class PanelSubscriptionAdapter with InfraLogger {
       _logger.debug("开始获取面板订阅");
 
       // 1. 从面板获取订阅链接
-      final subscriptionUrl = await _subscriptionService.getSubscriptionLink(accessToken);
+      final subscriptionUrl = await _userService.getSubscriptionLink(accessToken);
       if (subscriptionUrl == null) {
         _logger.error("无法获取订阅链接");
         return null;
@@ -51,6 +52,17 @@ class PanelSubscriptionAdapter with InfraLogger {
       return clashConfig;
     } catch (e) {
       _logger.error("获取和转换订阅失败: $e");
+      // 检查是否是token过期错误
+       if (TokenExpiryHandler.isTokenExpiredError(e)) {
+         _logger.warning("检测到token过期，需要重新登录");
+         // 使用全局token过期处理器
+         await TokenExpiryHandler.handleTokenExpiry(
+           context: null,
+           ref: null,
+           errorMessage: e.toString(),
+         );
+         rethrow;
+       }
       return null;
     }
   }
