@@ -6,7 +6,7 @@ import '../../xboard/services/http_service/domain_service.dart';
 /// 提供与 V2Board 后端 API 的交互功能
 class V2BoardApiService with InfraLogger {
   late final Dio _dio;
-  static const String _defaultBaseUrl = 'https://huswno28nh10bz52j7p3.vpacr.com';
+  static const String _defaultBaseUrl = 'https://88cloud.dpdns.org';
 
   V2BoardApiService() {
     _dio = Dio();
